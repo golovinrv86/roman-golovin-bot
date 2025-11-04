@@ -1,6 +1,7 @@
 from telegram import ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
 
 def get_main_keyboard():
+    """Главная клавиатура меню"""
     keyboard = [
         ["🔍 Обо мне", "💼 Опыт работы"],
         ["🎓 Образование", "🛠 Навыки"],
@@ -10,16 +11,19 @@ def get_main_keyboard():
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
 def get_contacts_keyboard():
+    """Клавиатура для раздела контактов"""
     keyboard = [
-        [
-            InlineKeyboardButton("📧 Email", callback_data="email"),
-            InlineKeyboardButton("📱 Telegram", callback_data="telegram")
-        ]
+        [InlineKeyboardButton("📧 Email", callback_data="email")],
+        [InlineKeyboardButton("📱 Telegram", callback_data="telegram")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
 def get_ai_consultant_keyboard():
+    """Клавиатура для ИИ консультанта"""
     keyboard = [
-        ["🔙 Назад"]
+        ["🏭 Угольная промышленность"],
+        ["📊 Качество угля"],
+        ["🚀 Искусственный интеллект"],
+        ["📋 Главное меню"]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
