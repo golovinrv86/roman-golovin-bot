@@ -11,7 +11,7 @@ def get_main_keyboard():
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
 def get_contacts_keyboard():
-    """Клавиатура для раздела контактов"""
+    """Клавиатура для раздела контакты"""
     keyboard = [
         [InlineKeyboardButton("📧 Email", callback_data="email")],
         [InlineKeyboardButton("📱 Telegram", callback_data="telegram")]
