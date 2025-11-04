@@ -1,8 +1,7 @@
 from flask import Flask
 import os
+import subprocess
 import threading
-import asyncio
-import logging
 
 app = Flask(__name__)
 
@@ -15,25 +14,19 @@ def health():
     return "OK"
 
 def run_bot():
-    """Запускает бота в отдельном потоке"""
+    """Запускает бота в отдельном процессе"""
     try:
-        # Создаем новый event loop для этого потока
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-        # Импортируем и запускаем бота
-        from bot import main
-        loop.run_until_complete(main())
+        subprocess.run([sys.executable, "bot.py"], check=True)
     except Exception as e:
         print(f"❌ Ошибка при запуске бота: {e}")
-        import traceback
-        traceback.print_exc()
 
 if __name__ == '__main__':
-    # Запускаем бота в отдельном потоке
-    bot_thread = threading.Thread(target=run_bot, daemon=True)
-    bot_thread.start()
-    print("✅ Бот запущен в отдельном потоке")
+    import sys
+    
+    # Запускаем бота в отдельном процессе
+    bot_process = threading.Thread(target=run_bot, daemon=True)
+    bot_process.start()
+    print("✅ Бот запущен в отдельном процессе")
     
     # Запускаем Flask сервер
     port = int(os.environ.get('PORT', 10000))
