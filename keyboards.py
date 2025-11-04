@@ -20,7 +20,6 @@ def get_contacts_keyboard():
 
 def get_ai_consultant_keyboard():
     keyboard = [
-        ["🤖 Задать свой вопрос"],
         ["🔙 Назад"]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
