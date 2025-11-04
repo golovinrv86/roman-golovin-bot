@@ -64,18 +64,26 @@ async def handle_consultant_question(update: Update, context: ContextTypes.DEFAU
     # Показываем, что бот "печатает"
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     
-    # Отправляем вопрос в Yandex GPT
-    answer = await yandex_gpt.ask_question(question, topic)
-    
-    # Отправляем ответ пользователю
-    await update.message.reply_text(
-        f"🤖 *Ответ консультанта ({topic.replace('_', ' ').title()}):*\n\n{answer}",
-        parse_mode='Markdown',
-        reply_markup=get_consultant_question_keyboard()
-    )
+    try:
+        # Отправляем вопрос в Yandex GPT
+        answer = await yandex_gpt.ask_question(question, topic)
+        
+        # Отправляем ответ пользователю
+        await update.message.reply_text(
+            f"🤖 *Ответ консультанта ({topic.replace('_', ' ').title()}):*\n\n{answer}",
+            parse_mode='Markdown',
+            reply_markup=get_consultant_question_keyboard()
+        )
+        
+    except Exception as e:
+        print(f"❌ Ошибка при обработке вопроса: {e}")
+        await update.message.reply_text(
+            "❌ Произошла ошибка при обращении к AI-консультанту. Попробуйте еще раз.",
+            reply_markup=get_consultant_question_keyboard()
+        )
 
 async def ask_question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обрабатывает нажатие кнопки 'Задать вопрос' - ПРОСТО ПЕРЕХОДИТ В РЕЖИМ ВОПРОСА"""
+    """Обрабатывает нажатие кнопки 'Задать вопрос'"""
     user_id = update.message.from_user.id
     
     if not session_manager.is_in_consultant_mode(user_id):
@@ -85,8 +93,9 @@ async def ask_question_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         )
         return
     
-    # Устанавливаем флаг, что ждем вопрос
-    session_manager.get_user_session(user_id)["waiting_for_question"] = True
+    # Устанавливаем флаг ожидания вопроса
+    session = session_manager.get_user_session(user_id)
+    session["waiting_for_question"] = True
     
     await update.message.reply_text(
         "📝 *Режим вопросов активирован!*\n\n"
@@ -103,17 +112,13 @@ async def handle_consultant_topic_selection(update: Update, context: ContextType
     # Устанавливаем тему
     session_manager.set_consultant_topic(user_id, topic_key)
     
-    # Сбрасываем флаг ожидания вопроса
-    session_manager.get_user_session(user_id)["waiting_for_question"] = False
-    
     print(f"🎯 Пользователь {user_id} выбрал тему: {topic_name}")
     
     await update.message.reply_text(
         f"{topic_name}\n\n"
         f"{description}\n\n"
         "✅ *Тема установлена!*\n\n"
-        "Нажмите '📝 Задать вопрос' чтобы активировать режим вопросов, "
-        "затем просто пишите вопросы в чат.",
+        "Нажмите '📝 Задать вопрос' чтобы обратиться к AI-консультанту.",
         parse_mode='Markdown',
         reply_markup=get_consultant_question_keyboard()
     )
@@ -123,7 +128,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     print(f"📨 Получено сообщение от {user_id}: '{text}'")
     
-    # Инициализируем сессию если нужно
+    # Получаем сессию пользователя
     session = session_manager.get_user_session(user_id)
     
     # ПЕРВОЕ: проверяем, не находимся ли мы в режиме ожидания вопроса
@@ -133,7 +138,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await handle_consultant_question(update, context, text)
         return
     
-    # ВТОРОЕ: обработка специальных команд и кнопок
+    # ВТОРОЕ: обработка навигационных команд
     if text == "🔍 Обо мне":
         session_manager.clear_consultant_topic(user_id)
         await update.message.reply_text(
@@ -224,7 +229,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🏭 *Угольная промышленность* - технологии добычи, оборудование, безопасность\n"
             "📊 *Качество угля* - стандарты, методики, контроль качества\n"
             "🚀 *Искусственный интеллект* - внедрение ИИ в производство\n\n"
-            "После выбора темы нажмите '📝 Задать вопрос' для активации режима вопросов.",
+            "После выбора темы нажмите '📝 Задать вопрос' для обращения к AI-консультанту.",
             parse_mode='Markdown',
             reply_markup=get_ai_consultant_keyboard()
         )
@@ -294,7 +299,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if session_manager.is_in_consultant_mode(user_id):
             await update.message.reply_text(
                 "🤖 Вы в режиме консультанта.\n\n"
-                "Нажмите '📝 Задать вопрос' чтобы активировать режим вопросов, "
+                "Нажмите '📝 Задать вопрос' чтобы обратиться к AI-консультанту, "
                 "или '🔙 Назад к темам' чтобы выбрать другую тему.",
                 reply_markup=get_consultant_question_keyboard()
             )
@@ -364,7 +369,7 @@ def main():
         # Добавляем обработчик ошибок
         application.add_error_handler(error_handler)
         
-        print("✅ Бот инициализирован с упрощенной логикой вопросов!")
+        print("✅ Бот инициализирован с улучшенной обработкой ошибок!")
         print("🤖 Запускаем polling...")
         
         application.run_polling()
