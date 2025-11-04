@@ -22,8 +22,15 @@ def get_ai_consultant_keyboard():
     """Клавиатура для ИИ консультанта"""
     keyboard = [
         ["🏭 Угольная промышленность"],
-        ["📊 Качество угля"],
+        ["📊 Качество угля"], 
         ["🚀 Искусственный интеллект"],
         ["📋 Главное меню"]
+    ]
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+def get_back_to_consultant_keyboard():
+    """Клавиатура для возврата в консультант"""
+    keyboard = [
+        ["🔙 Назад к темам"]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
