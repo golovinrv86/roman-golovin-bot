@@ -2,8 +2,6 @@ from flask import Flask
 import os
 import threading
 import asyncio
-import subprocess
-import sys
 
 app = Flask(__name__)
 
@@ -17,12 +15,12 @@ def health():
 
 def run_bot():
     """Запускает бота в отдельном потоке"""
-    try:
-        # Импортируем и запускаем бота
-        from bot import main
-        asyncio.run(main())
-    except Exception as e:
-        print(f"❌ Ошибка при запуске бота: {e}")
+    asyncio.run(bot_main())
+
+async def bot_main():
+    """Асинхронная функция для запуска бота"""
+    from bot import main
+    await main()
 
 if __name__ == '__main__':
     # Запускаем бота в отдельном потоке
