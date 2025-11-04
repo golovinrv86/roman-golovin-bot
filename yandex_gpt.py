@@ -28,75 +28,8 @@ class YandexGPT:
         return prompts.get(topic, """Ты AI-консультант Романа Головина. Отвечай на вопросы профессионально и вежливо.""")
     
     async def ask_question(self, question, topic="общий"):
-        """Отправляет вопрос в Yandex GPT и возвращает ответ"""
-        
-        if not self.is_configured():
-            error_msg = "❌ Сервис консультанта временно недоступен. Ведутся технические работы."
-            print(f"Yandex GPT не настроен: API_KEY={bool(self.api_key)}, FOLDER_ID={bool(self.folder_id)}")
-            return error_msg
-        
-        try:
-            headers = {
-                "Authorization": f"Api-Key {self.api_key}",
-                "Content-Type": "application/json"
-            }
-            
-            system_prompt = self.get_system_prompt(topic)
-            
-            data = {
-                "modelUri": f"gpt://{self.folder_id}/yandexgpt-lite",
-                "completionOptions": {
-                    "stream": False,
-                    "temperature": 0.3,
-                    "maxTokens": 2000
-                },
-                "messages": [
-                    {
-                        "role": "system",
-                        "text": system_prompt
-                    },
-                    {
-                        "role": "user", 
-                        "text": question
-                    }
-                ]
-            }
-            
-            print(f"🔄 Отправляем запрос в Yandex GPT: {question[:50]}...")
-            
-            response = requests.post(self.url, headers=headers, json=data, timeout=30)
-            
-            print(f"📨 Получен ответ: {response.status_code}")
-            
-            if response.status_code == 200:
-                result = response.json()
-                if "result" in result and "alternatives" in result["result"]:
-                    answer = result["result"]["alternatives"][0]["message"]["text"]
-                    print(f"✅ Успешный ответ от Yandex GPT: {answer[:100]}...")
-                    return answer
-                else:
-                    error_msg = "❌ Неверный формат ответа от сервиса."
-                    print(f"Ошибка формата ответа: {result}")
-                    return error_msg
-            else:
-                error_msg = f"⚠️ Ошибка сервиса (код {response.status_code}). Попробуйте позже."
-                logger.error(f"Yandex GPT API error: {response.status_code} - {response.text}")
-                print(f"Ошибка API: {response.status_code} - {response.text}")
-                return error_msg
-                
-        except requests.exceptions.Timeout:
-            error_msg = "⏰ Сервис не отвечает. Попробуйте задать вопрос позже."
-            print("Таймаут запроса к Yandex GPT")
-            return error_msg
-        except requests.exceptions.ConnectionError:
-            error_msg = "🔌 Проблемы с соединением. Проверьте интернет."
-            print("Ошибка соединения с Yandex GPT")
-            return error_msg
-        except Exception as e:
-            error_msg = "❌ Произошла непредвиденная ошибка. Попробуйте еще раз."
-            logger.error(f"Error in Yandex GPT: {e}")
-            print(f"Неожиданная ошибка: {e}")
-            return error_msg
+        """ЗАГЛУШКА для тестирования - временно возвращает тестовый ответ"""
+        return f"🤖 Это тестовый ответ от AI-консультанта по теме '{topic.replace('_', ' ').title()}'.\n\nНа ваш вопрос: '{question}'\n\nОтвет: В настоящий момент сервис AI-консультанта находится в режиме тестирования. Полная версия с интеграцией Yandex GPT будет доступна в ближайшее время.\n\n*Зольность угля* - это показатель, характеризующий содержание негорючего остатка (золы) в угле после его полного сжигания. Измеряется в процентах и является важным параметром качества угля."
 
 # Создаем глобальный экземпляр
 yandex_gpt = YandexGPT()
