@@ -1,5 +1,3 @@
-import time
-
 class SessionManager:
     def __init__(self):
         self.user_sessions = {}
@@ -8,8 +6,7 @@ class SessionManager:
         """Получает или создает сессию пользователя"""
         if user_id not in self.user_sessions:
             self.user_sessions[user_id] = {
-                "consultant_topic": None,
-                "last_activity": time.time()
+                "consultant_topic": None
             }
         return self.user_sessions[user_id]
     
@@ -17,7 +14,6 @@ class SessionManager:
         """Устанавливает тему консультанта для пользователя"""
         session = self.get_user_session(user_id)
         session["consultant_topic"] = topic
-        session["last_activity"] = time.time()
     
     def get_consultant_topic(self, user_id):
         """Получает текущую тему консультанта пользователя"""
@@ -28,7 +24,6 @@ class SessionManager:
         """Очищает тему консультанта"""
         session = self.get_user_session(user_id)
         session["consultant_topic"] = None
-        session["last_activity"] = time.time()
     
     def is_in_consultant_mode(self, user_id):
         """Проверяет, находится ли пользователь в режиме консультанта"""

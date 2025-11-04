@@ -13,11 +13,7 @@ class YandexGPT:
         
     def is_configured(self):
         """Проверяет, настроены ли ключи API"""
-        configured = bool(self.api_key and self.folder_id)
-        logger.info(f"Yandex GPT configured: {configured}")
-        if configured:
-            logger.info(f"Folder ID: {self.folder_id}")
-        return configured
+        return bool(self.api_key and self.folder_id)
     
     def get_system_prompt(self, topic):
         """Возвращает системный промпт в зависимости от темы"""
@@ -38,12 +34,8 @@ class YandexGPT:
     
     async def ask_question(self, question, topic="угольная_промышленность"):
         """Отправляет вопрос в Yandex GPT и получает ответ"""
-        logger.info(f"Processing question for topic {topic}: {question[:100]}...")
-        
         if not self.is_configured():
-            error_msg = "❌ Сервис AI-консультанта временно недоступен. Проверьте настройки API."
-            logger.error(error_msg)
-            return error_msg
+            return "❌ Сервис AI-консультанта временно недоступен. Проверьте настройки API."
         
         try:
             headers = {
@@ -70,8 +62,6 @@ class YandexGPT:
                 ]
             }
             
-            logger.info("Sending request to Yandex GPT API...")
-            
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     self.url, 
@@ -83,21 +73,12 @@ class YandexGPT:
                     if response.status == 200:
                         result = await response.json()
                         answer = result['result']['alternatives'][0]['message']['text']
-                        logger.info("Successfully received response from Yandex GPT")
                         return answer
                     else:
                         error_text = await response.text()
-                        logger.error(f"Yandex GPT API error: {response.status} - {error_text}")
                         return "❌ Произошла ошибка при обращении к AI-консультанту. Пожалуйста, попробуйте еще раз."
                         
-        except aiohttp.ClientError as e:
-            logger.error(f"Network error: {e}")
-            return "❌ Ошибка соединения с AI-консультантом. Проверьте подключение к интернету."
-        except asyncio.TimeoutError:
-            logger.error("Yandex GPT request timeout")
-            return "❌ Превышено время ожидания ответа от AI-консультанта."
         except Exception as e:
-            logger.error(f"Unexpected error: {e}")
             return "❌ Произошла непредвиденная ошибка. Пожалуйста, попробуйте еще раз."
 
 # Создаем глобальный экземпляр
