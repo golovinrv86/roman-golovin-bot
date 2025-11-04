@@ -28,8 +28,16 @@ def get_ai_consultant_keyboard():
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
+def get_consultant_question_keyboard():
+    """Клавиатура в режиме консультанта"""
+    keyboard = [
+        ["📝 Задать вопрос"],  # НОВАЯ КНОПКА!
+        ["🔙 Назад к темам"]
+    ]
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
 def get_back_to_consultant_keyboard():
-    """Клавиатура для возврата в консультант"""
+    """Клавиатура для возврата в консультант (альтернативная)"""
     keyboard = [
         ["🔙 Назад к темам"]
     ]

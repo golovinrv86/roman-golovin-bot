@@ -2,15 +2,19 @@ import os
 import logging
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes
+from telegram.ext import ConversationHandler
 
 # Импортируем модули
-from keyboards import get_main_keyboard, get_contacts_keyboard, get_ai_consultant_keyboard, get_back_to_consultant_keyboard
+from keyboards import get_main_keyboard, get_contacts_keyboard, get_ai_consultant_keyboard, get_consultant_question_keyboard
 from yandex_gpt import yandex_gpt
 from session_manager import session_manager
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Состояния для ConversationHandler
+WAITING_FOR_QUESTION = 1
 
 print("🤖 Бот Головина Романа - ЗАПУЩЕН")
 print(f"✅ Yandex GPT: {'настроен' if yandex_gpt.is_configured() else 'не настроен'}")
@@ -44,6 +48,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown',
             reply_markup=get_main_keyboard()
         )
+    
+    return ConversationHandler.END
 
 async def handle_consultant_question(update: Update, context: ContextTypes.DEFAULT_TYPE, question: str):
     """Обрабатывает вопросы для AI-консультанта"""
@@ -57,7 +63,7 @@ async def handle_consultant_question(update: Update, context: ContextTypes.DEFAU
             "❌ Сначала выберите тему для консультации.",
             reply_markup=get_ai_consultant_keyboard()
         )
-        return
+        return ConversationHandler.END
     
     topic = session_manager.get_consultant_topic(user_id)
     
@@ -71,8 +77,43 @@ async def handle_consultant_question(update: Update, context: ContextTypes.DEFAU
     await update.message.reply_text(
         f"🤖 *Ответ консультанта ({topic.replace('_', ' ').title()}):*\n\n{answer}",
         parse_mode='Markdown',
-        reply_markup=get_back_to_consultant_keyboard()
+        reply_markup=get_consultant_question_keyboard()
     )
+    
+    return ConversationHandler.END
+
+async def ask_question_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обрабатывает нажатие кнопки 'Задать вопрос'"""
+    user_id = update.message.from_user.id
+    
+    if not session_manager.is_in_consultant_mode(user_id):
+        await update.message.reply_text(
+            "❌ Сначала выберите тему для консультации.",
+            reply_markup=get_ai_consultant_keyboard()
+        )
+        return ConversationHandler.END
+    
+    await update.message.reply_text(
+        "📝 *Напишите ваш вопрос:*\n\n"
+        "Просто напишите сообщение с вопросом, и я передам его AI-консультанту.",
+        parse_mode='Markdown'
+    )
+    
+    return WAITING_FOR_QUESTION
+
+async def receive_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Получает вопрос от пользователя"""
+    question = update.message.text
+    return await handle_consultant_question(update, context, question)
+
+async def cancel_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Отменяет ввод вопроса"""
+    user_id = update.message.from_user.id
+    await update.message.reply_text(
+        "❌ Ввод вопроса отменен.",
+        reply_markup=get_consultant_question_keyboard()
+    )
+    return ConversationHandler.END
 
 async def handle_consultant_topic_selection(update: Update, context: ContextTypes.DEFAULT_TYPE, topic_key: str, topic_name: str, description: str):
     """Обрабатывает выбор темы консультанта"""
@@ -86,27 +127,16 @@ async def handle_consultant_topic_selection(update: Update, context: ContextType
     await update.message.reply_text(
         f"{topic_name}\n\n"
         f"{description}\n\n"
-        "✅ *Тема установлена!* Теперь вы можете задавать вопросы.\n\n"
-        "Для возврата к выбору темы нажмите 'Назад к темам'",
+        "✅ *Тема установлена!*\n\n"
+        "Нажмите '📝 Задать вопрос' чтобы обратиться к AI-консультанту.",
         parse_mode='Markdown',
-        reply_markup=get_back_to_consultant_keyboard()
+        reply_markup=get_consultant_question_keyboard()
     )
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     text = update.message.text.strip()
     print(f"📨 Получено сообщение от {user_id}: '{text}'")
-    
-    # ВАЖНО: Сначала проверяем, находится ли пользователь в режиме консультанта
-    if session_manager.is_in_consultant_mode(user_id):
-        # Если пользователь в режиме консультанта, проверяем не навигационные ли это команды
-        if text in ["🔙 Назад к темам", "📋 Главное меню"]:
-            # Это навигационные команды - обрабатываем их
-            pass  # Продолжаем обработку ниже
-        else:
-            # Это вопрос консультанту - обрабатываем его
-            await handle_consultant_question(update, context, text)
-            return
     
     # Обработка навигационных команд и выбора тем
     if text == "🔍 Обо мне":
@@ -117,7 +147,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "пройдя путь через ключевые подразделения: от внедрения SAP ERP "
             "и бухгалтерского контроля до управления клиентскими отношениями "
             "и технологического надзора.",
-            parse_mode='Markdown'
+            parse_mode='Markdown',
+            reply_markup=get_main_keyboard()
         )
     
     elif text == "💼 Опыт работы":
@@ -131,7 +162,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• Специалист отдела учета услуг\n"
             "• Специалист по внедрению ПО SAP ERP\n\n"
             "*Общий стаж:* 16+ лет",
-            parse_mode='Markdown'
+            parse_mode='Markdown',
+            reply_markup=get_main_keyboard()
         )
     
     elif text == "🎓 Образование":
@@ -144,7 +176,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "*Среднее специальное образование:*\n"
             "Хабаровская Банковская Школа\n"
             "Специальность: Специалист банковского дела",
-            parse_mode='Markdown'
+            parse_mode='Markdown',
+            reply_markup=get_main_keyboard()
         )
     
     elif text == "🛠 Навыки":
@@ -160,7 +193,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• Уверенный пользователь MS Office\n"
             "• Опыт работы с Python\n"
             "• Работа с искусственным интеллектом",
-            parse_mode='Markdown'
+            parse_mode='Markdown',
+            reply_markup=get_main_keyboard()
         )
     
     elif text == "🤖 Проекты ИИ":
@@ -172,7 +206,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• Внедрение систем мониторинга процессов\n"
             "• Обработка и анализ видео\n"
             "• Разработка интеллектуальных систем контроля",
-            parse_mode='Markdown'
+            parse_mode='Markdown',
+            reply_markup=get_main_keyboard()
         )
     
     elif text == "📞 Контакты":
@@ -194,7 +229,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🏭 *Угольная промышленность* - технологии добычи, оборудование, безопасность\n"
             "📊 *Качество угля* - стандарты, методики, контроль качества\n"
             "🚀 *Искусственный интеллект* - внедрение ИИ в производство\n\n"
-            "После выбора темы вы можете задавать вопросы AI-консультанту.",
+            "После выбора темы нажмите '📝 Задать вопрос' для обращения к AI-консультанту.",
             parse_mode='Markdown',
             reply_markup=get_ai_consultant_keyboard()
         )
@@ -256,10 +291,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     
     else:
-        # Если сообщение не распознано
+        # Если сообщение не распознано и пользователь в режиме консультанта
         if session_manager.is_in_consultant_mode(user_id):
-            # Если есть активная тема - это вопрос
-            await handle_consultant_question(update, context, text)
+            await update.message.reply_text(
+                "🤖 Вы в режиме консультанта.\n\n"
+                "Нажмите '📝 Задать вопрос' чтобы обратиться к AI-консультанту, "
+                "или '🔙 Назад к темам' чтобы выбрать другую тему.",
+                reply_markup=get_consultant_question_keyboard()
+            )
         else:
             # Если нет активной темы - показываем меню
             await update.message.reply_text(
@@ -312,6 +351,22 @@ def main():
     try:
         application = Application.builder().token(BOT_TOKEN).build()
         
+        # Создаем ConversationHandler для вопросов консультанта
+        question_conversation = ConversationHandler(
+            entry_points=[
+                MessageHandler(filters.Regex("^📝 Задать вопрос$"), ask_question_handler)
+            ],
+            states={
+                WAITING_FOR_QUESTION: [
+                    MessageHandler(filters.TEXT & ~filters.COMMAND, receive_question)
+                ]
+            },
+            fallbacks=[
+                MessageHandler(filters.Regex("^🔙 Назад к темам$"), cancel_question),
+                MessageHandler(filters.Regex("^📋 Главное меню$"), cancel_question)
+            ]
+        )
+        
         # Добавляем обработчики команд
         application.add_handler(CommandHandler("start", start))
         application.add_handler(CommandHandler("menu", menu_command))
@@ -320,13 +375,16 @@ def main():
         # Добавляем обработчик инлайн-кнопок
         application.add_handler(CallbackQueryHandler(button_handler))
         
-        # Добавляем обработчик текстовых сообщений
+        # Добавляем ConversationHandler ДО основного обработчика сообщений
+        application.add_handler(question_conversation)
+        
+        # Добавляем основной обработчик текстовых сообщений
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
         
         # Добавляем обработчик ошибок
         application.add_error_handler(error_handler)
         
-        print("✅ Бот инициализирован с новой системой сессий!")
+        print("✅ Бот инициализирован с кнопкой для вопросов!")
         print("🤖 Запускаем polling...")
         
         application.run_polling()
