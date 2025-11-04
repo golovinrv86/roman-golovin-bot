@@ -1,5 +1,6 @@
 import os
 import logging
+import asyncio
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes
 
@@ -160,29 +161,51 @@ async def contacts_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=get_contacts_keyboard()
     )
 
-def main():
-    BOT_TOKEN = os.environ.get('BOT_TOKEN')
+async def main():
+    """Основная асинхронная функция для запуска бота"""
     
+    # Получаем все переменные окружения
+    BOT_TOKEN = os.environ.get('BOT_TOKEN')
+    YANDEX_API_KEY = os.environ.get('YANDEX_GPT_API_KEY')
+    YANDEX_FOLDER_ID = os.environ.get('YANDEX_FOLDER_ID')
+
+    # Проверка переменных
     if not BOT_TOKEN:
         print("❌ ОШИБКА: BOT_TOKEN не найден!")
         return
     
+    if not YANDEX_API_KEY:
+        print("⚠️  Предупреждение: YANDEX_GPT_API_KEY не найден")
+    
+    if not YANDEX_FOLDER_ID:
+        print("⚠️  Предупреждение: YANDEX_FOLDER_ID не найден")
+    
+    print("✅ Все переменные окружения загружены успешно!")
+
     try:
-        app = Application.builder().token(BOT_TOKEN).build()
+        # Создаем приложение бота
+        application = Application.builder().token(BOT_TOKEN).build()
         
-        app.add_handler(CommandHandler("start", start))
-        app.add_handler(CommandHandler("menu", menu_command))
-        app.add_handler(CommandHandler("contacts", contacts_command))
-        app.add_handler(CallbackQueryHandler(button_handler))
-        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+        # Добавляем обработчики
+        application.add_handler(CommandHandler("start", start))
+        application.add_handler(CommandHandler("menu", menu_command))
+        application.add_handler(CommandHandler("contacts", contacts_command))
+        application.add_handler(CallbackQueryHandler(button_handler))
+        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
         
-        print("✅ Бот успешно запущен!")
-        print("🤖 Тестируйте команду: /start")
+        print("✅ Бот успешно инициализирован!")
+        print("🤖 Запускаем polling...")
         
-        app.run_polling()
+        # Запускаем бота
+        await application.run_polling()
         
     except Exception as e:
-        print(f"❌ Ошибка запуска: {e}")
+        print(f"❌ Ошибка запуска бота: {e}")
+
+# Старая синхронная функция main для обратной совместимости
+def sync_main():
+    """Синхронная версия для запуска бота отдельно"""
+    asyncio.run(main())
 
 if __name__ == "__main__":
-    main()
+    sync_main()
