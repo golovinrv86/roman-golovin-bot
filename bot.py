@@ -3,6 +3,9 @@ import logging
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes
 
+# Импортируем функции клавиатур
+from keyboards import get_main_keyboard, get_contacts_keyboard, get_ai_consultant_keyboard
+
 # Настройка логирования
 logging.basicConfig(
     level=logging.INFO,
@@ -11,9 +14,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 print("=" * 50)
-print("🤖 БОТ ГОЛОВИНА РОМАНА - НОВАЯ ВЕРСИЯ 2.0")
-print("📁 Текущая директория:", os.getcwd())
-print("🔑 BOT_TOKEN: ✅ Установлен")
+print("🤖 БОТ ГОЛОВИНА РОМАНА - РАБОЧАЯ ВЕРСИЯ")
+print("✅ Клавиатуры загружены")
 print("📸 Фото: ✅ Найдено" if os.path.exists('assets/my_photo.png') else "❌ Не найдено")
 print("=" * 50)
 
@@ -37,7 +39,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=get_main_keyboard()
             )
     except Exception as e:
-        print(f"❌ Ошибка отправки фото: {e}")
+        print(f"❌ Ошибка: {e}")
         await update.message.reply_text(
             "👋 Привет! Я *Головин Роман*\n\n🏭 Старший контрольный мастер подземным\n💼 Ургалуголь",
             parse_mode='Markdown',
