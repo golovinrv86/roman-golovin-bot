@@ -3,9 +3,10 @@ import logging
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes
 
-# Импортируем функции клавиатур
+# Импортируем модули
 from keyboards import get_main_keyboard, get_contacts_keyboard, get_ai_consultant_keyboard, get_back_to_consultant_keyboard
 from yandex_gpt import yandex_gpt
+from session_manager import session_manager
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -14,15 +15,12 @@ logger = logging.getLogger(__name__)
 print("🤖 Бот Головина Романа - ЗАПУЩЕН")
 print(f"✅ Yandex GPT: {'настроен' if yandex_gpt.is_configured() else 'не настроен'}")
 
-# Глобальная переменная для хранения текущей темы консультации
-user_sessions = {}
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
     print(f"👤 Пользователь {user.first_name} начал чат")
     
     # Очищаем сессию пользователя
-    user_sessions[user.id] = {"consultant_topic": None}
+    session_manager.clear_consultant_topic(user.id)
     
     try:
         if os.path.exists('assets/my_photo.png'):
@@ -47,22 +45,21 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=get_main_keyboard()
         )
 
-async def handle_consultant_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_consultant_question(update: Update, context: ContextTypes.DEFAULT_TYPE, question: str):
     """Обрабатывает вопросы для AI-консультанта"""
     user_id = update.message.from_user.id
-    question = update.message.text
     
     print(f"🤖 Вопрос консультанту от {user_id}: {question}")
     
     # Проверяем, есть ли активная сессия консультанта
-    if user_id not in user_sessions or not user_sessions[user_id].get("consultant_topic"):
+    if not session_manager.is_in_consultant_mode(user_id):
         await update.message.reply_text(
             "❌ Сначала выберите тему для консультации.",
             reply_markup=get_ai_consultant_keyboard()
         )
         return
     
-    topic = user_sessions[user_id]["consultant_topic"]
+    topic = session_manager.get_consultant_topic(user_id)
     
     # Показываем, что бот "печатает"
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
@@ -77,25 +74,43 @@ async def handle_consultant_question(update: Update, context: ContextTypes.DEFAU
         reply_markup=get_back_to_consultant_keyboard()
     )
 
+async def handle_consultant_topic_selection(update: Update, context: ContextTypes.DEFAULT_TYPE, topic_key: str, topic_name: str, description: str):
+    """Обрабатывает выбор темы консультанта"""
+    user_id = update.message.from_user.id
+    
+    # Устанавливаем тему
+    session_manager.set_consultant_topic(user_id, topic_key)
+    
+    print(f"🎯 Пользователь {user_id} выбрал тему: {topic_name}")
+    
+    await update.message.reply_text(
+        f"{topic_name}\n\n"
+        f"{description}\n\n"
+        "✅ *Тема установлена!* Теперь вы можете задавать вопросы.\n\n"
+        "Для возврата к выбору темы нажмите 'Назад к темам'",
+        parse_mode='Markdown',
+        reply_markup=get_back_to_consultant_keyboard()
+    )
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
-    text = update.message.text
-    print(f"📨 Получено сообщение от {user_id}: {text}")
+    text = update.message.text.strip()
+    print(f"📨 Получено сообщение от {user_id}: '{text}'")
     
-    # Инициализируем сессию пользователя если её нет
-    if user_id not in user_sessions:
-        user_sessions[user_id] = {"consultant_topic": None}
+    # ВАЖНО: Сначала проверяем, находится ли пользователь в режиме консультанта
+    if session_manager.is_in_consultant_mode(user_id):
+        # Если пользователь в режиме консультанта, проверяем не навигационные ли это команды
+        if text in ["🔙 Назад к темам", "📋 Главное меню"]:
+            # Это навигационные команды - обрабатываем их
+            pass  # Продолжаем обработку ниже
+        else:
+            # Это вопрос консультанту - обрабатываем его
+            await handle_consultant_question(update, context, text)
+            return
     
-    # ПЕРВОЕ: Проверяем, находится ли пользователь в режиме консультанта
-    current_topic = user_sessions[user_id].get("consultant_topic")
-    if current_topic and text not in ["🔙 Назад к темам", "📋 Главное меню"]:
-        # Если есть активная тема консультанта И сообщение не навигационное - обрабатываем как вопрос
-        await handle_consultant_question(update, context)
-        return
-    
-    # ВТОРОЕ: Обработка навигационных команд и выбора тем
+    # Обработка навигационных команд и выбора тем
     if text == "🔍 Обо мне":
-        user_sessions[user_id]["consultant_topic"] = None
+        session_manager.clear_consultant_topic(user_id)
         await update.message.reply_text(
             "🔍 **Обо мне:**\n\n"
             "С 2008 года развиваюсь вместе с предприятием \"Ургалуголь\", "
@@ -106,7 +121,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     
     elif text == "💼 Опыт работы":
-        user_sessions[user_id]["consultant_topic"] = None
+        session_manager.clear_consultant_topic(user_id)
         await update.message.reply_text(
             "💼 **Опыт работы:**\n\n"
             "*Ургалуголь* (02.2008 - настоящее время)\n\n"
@@ -120,7 +135,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     
     elif text == "🎓 Образование":
-        user_sessions[user_id]["consultant_topic"] = None
+        session_manager.clear_consultant_topic(user_id)
         await update.message.reply_text(
             "🎓 **Образование:**\n\n"
             "*Высшее образование:*\n"
@@ -133,7 +148,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     
     elif text == "🛠 Навыки":
-        user_sessions[user_id]["consultant_topic"] = None
+        session_manager.clear_consultant_topic(user_id)
         await update.message.reply_text(
             "🛠 **Навыки:**\n\n"
             "*Профессиональные:*\n"
@@ -149,7 +164,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     
     elif text == "🤖 Проекты ИИ":
-        user_sessions[user_id]["consultant_topic"] = None
+        session_manager.clear_consultant_topic(user_id)
         await update.message.reply_text(
             "🤖 **Проекты с ИИ:**\n\n"
             "*Текущие направления:*\n"
@@ -161,7 +176,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     
     elif text == "📞 Контакты":
-        user_sessions[user_id]["consultant_topic"] = None
+        session_manager.clear_consultant_topic(user_id)
         await update.message.reply_text(
             "📞 **Контакты:**\n\n"
             "📧 Email: GolovinRV@suek.ru\n"
@@ -172,7 +187,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     
     elif text == "📰 Консультант ИИ":
-        user_sessions[user_id]["consultant_topic"] = None
+        session_manager.clear_consultant_topic(user_id)
         await update.message.reply_text(
             "🤖 **Консультант ИИ**\n\n"
             "Выберите тему для консультации:\n\n"
@@ -184,61 +199,49 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=get_ai_consultant_keyboard()
         )
     
-    # Обработка тем консультанта - ВКЛЮЧАЯ повторные нажатия
+    # Обработка тем консультанта
     elif text == "🏭 Угольная промышленность":
-        # Устанавливаем или ПЕРЕустанавливаем тему
-        user_sessions[user_id] = {"consultant_topic": "угольная_промышленность"}
-        await update.message.reply_text(
-            "🏭 *Консультант по угольной промышленности*\n\n"
+        await handle_consultant_topic_selection(
+            update, context,
+            "угольная_промышленность",
+            "🏭 *Консультант по угольной промышленности*",
             "Задавайте вопросы по:\n"
             "• Технологиям добычи угля\n"
             "• Оборудованию и технике\n"  
             "• Технике безопасности\n"
             "• Процессам обогащения\n"
-            "• Логистике и транспортировке\n\n"
-            "✅ *Тема установлена!* Теперь вы можете задавать вопросы.\n\n"
-            "Для возврата к выбору темы нажмите 'Назад к темам'",
-            parse_mode='Markdown',
-            reply_markup=get_back_to_consultant_keyboard()
+            "• Логистике и транспортировке"
         )
     
     elif text == "📊 Качество угля":
-        # Устанавливаем или ПЕРЕустанавливаем тему
-        user_sessions[user_id] = {"consultant_topic": "качество_угля"}
-        await update.message.reply_text(
-            "📊 *Консультант по качеству угля*\n\n"
+        await handle_consultant_topic_selection(
+            update, context,
+            "качество_угля", 
+            "📊 *Консультант по качеству угля*",
             "Задавайте вопросы по:\n"
             "• Методам оценки качества\n"
             "• Параметрам качества (зольность, влажность)\n"
             "• Стандартам и нормативам\n"
             "• Лабораторным исследованиям\n"
-            "• Сертификации продукции\n\n"
-            "✅ *Тема установлена!* Теперь вы можете задавать вопросы.\n\n"
-            "Для возврата к выбору темы нажмите 'Назад к темам'",
-            parse_mode='Markdown',
-            reply_markup=get_back_to_consultant_keyboard()
+            "• Сертификации продукции"
         )
     
     elif text == "🚀 Искусственный интеллект":
-        # Устанавливаем или ПЕРЕустанавливаем тему
-        user_sessions[user_id] = {"consultant_topic": "искусственный_интеллект"}
-        await update.message.reply_text(
-            "🚀 *Консультант по искусственному интеллекту*\n\n"
+        await handle_consultant_topic_selection(
+            update, context,
+            "искусственный_интеллект",
+            "🚀 *Консультант по искусственному интеллекту*",
             "Задавайте вопросы по:\n"
             "• Внедрению ИИ в производство\n"
             "• Компьютерному зрению\n"
             "• Predictive maintenance\n"
             "• Анализу данных\n"
-            "• Оптимизации процессов\n\n"
-            "✅ *Тема установлена!* Теперь вы можете задавать вопросы.\n\n"
-            "Для возврата к выбору темы нажмите 'Назад к темам'",
-            parse_mode='Markdown',
-            reply_markup=get_back_to_consultant_keyboard()
+            "• Оптимизации процессов"
         )
     
     elif text == "🔙 Назад к темам":
         # Возвращаем к выбору тем консультанта
-        user_sessions[user_id]["consultant_topic"] = None
+        session_manager.clear_consultant_topic(user_id)
         await update.message.reply_text(
             "Выберите тему для консультации:",
             reply_markup=get_ai_consultant_keyboard()
@@ -246,17 +249,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     elif text == "📋 Главное меню":
         # Возвращаем в главное меню
-        user_sessions[user_id]["consultant_topic"] = None
+        session_manager.clear_consultant_topic(user_id)
         await update.message.reply_text(
             "Главное меню:",
             reply_markup=get_main_keyboard()
         )
     
     else:
-        # Если сообщение не распознано и нет активной сессии консультанта
-        if current_topic:
-            # Если есть активная тема, но сообщение не обработано - это вопрос
-            await handle_consultant_question(update, context)
+        # Если сообщение не распознано
+        if session_manager.is_in_consultant_mode(user_id):
+            # Если есть активная тема - это вопрос
+            await handle_consultant_question(update, context, text)
         else:
             # Если нет активной темы - показываем меню
             await update.message.reply_text(
@@ -277,10 +280,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /menu - показывает главное меню"""
     user_id = update.message.from_user.id
-    # Очищаем сессию консультанта
-    if user_id in user_sessions:
-        user_sessions[user_id]["consultant_topic"] = None
-    
+    session_manager.clear_consultant_topic(user_id)
     await update.message.reply_text(
         "Главное меню:",
         reply_markup=get_main_keyboard()
@@ -326,7 +326,7 @@ def main():
         # Добавляем обработчик ошибок
         application.add_error_handler(error_handler)
         
-        print("✅ Бот инициализирован с исправленной логикой сессий!")
+        print("✅ Бот инициализирован с новой системой сессий!")
         print("🤖 Запускаем polling...")
         
         application.run_polling()
