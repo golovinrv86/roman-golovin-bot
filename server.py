@@ -4,6 +4,7 @@ import subprocess
 import threading
 import time
 import sys
+import shutil
 
 app = Flask(__name__)
 
@@ -15,11 +16,22 @@ def home():
 def health():
     return "OK"
 
+def find_python_command():
+    """Находит правильную команду для запуска Python"""
+    # Проверяем доступные команды Python
+    for cmd in ['python3', 'python', 'py']:
+        if shutil.which(cmd):
+            print(f"✅ Найдена команда Python: {cmd}")
+            return cmd
+    print("❌ Не найдена команда Python!")
+    return 'python'  # fallback
+
 def run_bot():
-    """Запускает бота в отдельном процессе с улучшенным логированием"""
-    print("🔄 Функция run_bot() запущена")
-    time.sleep(5)  # Уменьшили задержку до 5 секунд
-    print("🔄 Задержка завершена, запускаем бота...")
+    """Запускает бота в отдельном процессе"""
+    python_cmd = find_python_command()
+    print(f"🔄 Используем команду: {python_cmd}")
+    
+    time.sleep(5)
     
     while True:
         try:
@@ -27,15 +39,15 @@ def run_bot():
             print(f"📁 Текущая директория: {os.getcwd()}")
             print(f"📁 Существует ли bot.py: {os.path.exists('bot.py')}")
             
-            # Запускаем бота как subprocess с выводом в реальном времени
-            process = subprocess.Popen([sys.executable, 'bot.py'], 
+            # Запускаем бота с правильной командой Python
+            process = subprocess.Popen([python_cmd, 'bot.py'], 
                                      stdout=subprocess.PIPE, 
                                      stderr=subprocess.STDOUT,
                                      text=True,
                                      bufsize=1,
                                      universal_newlines=True)
             
-            print("✅ Процесс бота запущен, PID:", process.pid)
+            print(f"✅ Процесс бота запущен с PID: {process.pid}")
             
             # Читаем вывод в реальном времени
             for line in iter(process.stdout.readline, ''):
