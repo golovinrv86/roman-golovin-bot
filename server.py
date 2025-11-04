@@ -1,13 +1,11 @@
 from flask import Flask
 import os
-import asyncio
+import subprocess
 import threading
-import logging
+import time
+import sys
 
 app = Flask(__name__)
-
-# Глобальная переменная для хранения задачи бота
-bot_task = None
 
 @app.route('/')
 def home():
@@ -17,39 +15,61 @@ def home():
 def health():
     return "OK"
 
-def run_async_task():
-    """Запускает асинхронную задачу в отдельном event loop"""
-    global bot_task
-    
-    try:
-        # Создаем новый event loop для этого потока
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-        # Импортируем и запускаем бота
-        from bot import main
-        
-        # Запускаем бота
-        bot_task = asyncio.ensure_future(main(), loop=loop)
-        loop.run_until_complete(bot_task)
-        
-    except Exception as e:
-        print(f"❌ Ошибка при запуске бота: {e}")
-        import traceback
-        traceback.print_exc()
-    finally:
-        if bot_task and not bot_task.done():
-            bot_task.cancel()
+@app.route('/bot-status')
+def bot_status():
+    return "Бот запущен и работает!"
+
+def run_bot():
+    """Запускает бота в отдельном процессе с перезапуском при падении"""
+    while True:
+        try:
+            print("🔄 ЗАПУСКАЕМ БОТА...")
+            # Запускаем бота как subprocess
+            process = subprocess.Popen([sys.executable, 'bot.py'], 
+                                     stdout=subprocess.PIPE, 
+                                     stderr=subprocess.PIPE,
+                                     text=True)
+            
+            # Читаем вывод в реальном времени
+            while True:
+                output = process.stdout.readline()
+                if output == '' and process.poll() is not None:
+                    break
+                if output:
+                    print(f"🤖 БОТ: {output.strip()}")
+            
+            # Если процесс завершился
+            return_code = process.poll()
+            if return_code == 0:
+                print("✅ Бот завершил работу нормально")
+                break
+            else:
+                print(f"🔄 Бот упал с кодом {return_code}, перезапускаем...")
+                time.sleep(5)
+                
+        except Exception as e:
+            print(f"❌ Ошибка запуска бота: {e}")
+            time.sleep(10)
 
 if __name__ == '__main__':
-    print("🚀 Запуск приложения...")
+    print("=" * 50)
+    print("🚀 ЗАПУСК СЕРВЕРА И БОТА")
+    print("=" * 50)
+    
+    # Проверяем переменные окружения
+    BOT_TOKEN = os.environ.get('BOT_TOKEN')
+    if not BOT_TOKEN:
+        print("❌ ОШИБКА: BOT_TOKEN не установлен!")
+    else:
+        print("✅ BOT_TOKEN: найден")
     
     # Запускаем бота в отдельном потоке
-    bot_thread = threading.Thread(target=run_async_task, daemon=True)
+    bot_thread = threading.Thread(target=run_bot, daemon=True)
     bot_thread.start()
-    print("✅ Бот запущен в отдельном потоке")
+    print("✅ Бот запущен в фоновом режиме")
     
-    # Запускаем Flask сервер в основном потоке
+    # Запускаем Flask сервер
     port = int(os.environ.get('PORT', 10000))
-    print(f"🌐 Запуск Flask сервера на порту {port}")
+    print(f"🌐 Flask сервер запускается на порту {port}")
+    print(f"📡 URL: http://0.0.0.0:{port}")
     app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
