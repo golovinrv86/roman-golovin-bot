@@ -20,35 +20,45 @@ def bot_status():
     return "Бот запущен и работает!"
 
 def run_bot():
-    """Запускает бота в отдельном процессе с перезапуском при падении"""
+    """Запускает бота в отдельном процессе с улучшенным логированием"""
     while True:
         try:
             print("🔄 ЗАПУСКАЕМ БОТА...")
-            # Запускаем бота как subprocess
+            print(f"📁 Текущая директория: {os.getcwd()}")
+            print(f"📸 Фото существует: {os.path.exists('assets/my_photo.png')}")
+            
+            # Запускаем бота как subprocess с выводом в реальном времени
             process = subprocess.Popen([sys.executable, 'bot.py'], 
                                      stdout=subprocess.PIPE, 
-                                     stderr=subprocess.PIPE,
-                                     text=True)
+                                     stderr=subprocess.STDOUT,
+                                     text=True,
+                                     bufsize=1,
+                                     universal_newlines=True)
+            
+            print("✅ Процесс бота запущен")
             
             # Читаем вывод в реальном времени
-            while True:
-                output = process.stdout.readline()
-                if output == '' and process.poll() is not None:
-                    break
-                if output:
-                    print(f"🤖 БОТ: {output.strip()}")
+            for line in iter(process.stdout.readline, ''):
+                if line:
+                    print(f"🤖 БОТ: {line.strip()}")
             
-            # Если процесс завершился
-            return_code = process.poll()
+            # Ждем завершения процесса
+            process.wait()
+            return_code = process.returncode
+            
+            print(f"🔴 Бот завершил работу с кодом: {return_code}")
+            
             if return_code == 0:
                 print("✅ Бот завершил работу нормально")
                 break
             else:
-                print(f"🔄 Бот упал с кодом {return_code}, перезапускаем...")
+                print(f"🔄 Бот упал, перезапускаем через 5 секунд...")
                 time.sleep(5)
                 
         except Exception as e:
             print(f"❌ Ошибка запуска бота: {e}")
+            import traceback
+            traceback.print_exc()
             time.sleep(10)
 
 if __name__ == '__main__':
@@ -58,10 +68,16 @@ if __name__ == '__main__':
     
     # Проверяем переменные окружения
     BOT_TOKEN = os.environ.get('BOT_TOKEN')
-    if not BOT_TOKEN:
-        print("❌ ОШИБКА: BOT_TOKEN не установлен!")
-    else:
-        print("✅ BOT_TOKEN: найден")
+    YANDEX_API_KEY = os.environ.get('YANDEX_GPT_API_KEY')
+    YANDEX_FOLDER_ID = os.environ.get('YANDEX_FOLDER_ID')
+    
+    print(f"✅ BOT_TOKEN: {'найден' if BOT_TOKEN else 'НЕ НАЙДЕН'}")
+    print(f"✅ YANDEX_GPT_API_KEY: {'найден' if YANDEX_API_KEY else 'НЕ НАЙДЕН'}")
+    print(f"✅ YANDEX_FOLDER_ID: {'найден' if YANDEX_FOLDER_ID else 'НЕ НАЙДЕН'}")
+    
+    # Проверяем существование файлов
+    print(f"📁 bot.py: {os.path.exists('bot.py')}")
+    print(f"📁 assets/my_photo.png: {os.path.exists('assets/my_photo.png')}")
     
     # Запускаем бота в отдельном потоке
     bot_thread = threading.Thread(target=run_bot, daemon=True)
