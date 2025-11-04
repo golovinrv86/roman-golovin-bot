@@ -16,26 +16,23 @@ def health():
 
 def run_bot():
     """Запускает бота в отдельном потоке"""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     try:
-        # Создаем новый цикл событий для этого потока
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-        # Импортируем и запускаем бота
         from bot import main
         loop.run_until_complete(main())
     except Exception as e:
-        print(f"❌ Ошибка при запуске бота: {e}")
-        import traceback
-        traceback.print_exc()
+        logging.exception("Ошибка в боте")
+    finally:
+        loop.close()
 
 if __name__ == '__main__':
     # Запускаем бота в отдельном потоке
     bot_thread = threading.Thread(target=run_bot, daemon=True)
     bot_thread.start()
     print("✅ Бот запущен в отдельном потоке")
-    
+
     # Запускаем Flask сервер
     port = int(os.environ.get('PORT', 10000))
     print(f"🚀 Запуск сервера на порту {port}")
-    app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
