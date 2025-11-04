@@ -124,6 +124,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown',
             reply_markup=get_main_keyboard()
         )
+        return
     
     elif text == "💼 Опыт работы":
         session_manager.clear_consultant_topic(user_id)
@@ -139,6 +140,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown',
             reply_markup=get_main_keyboard()
         )
+        return
     
     elif text == "🎓 Образование":
         session_manager.clear_consultant_topic(user_id)
@@ -153,6 +155,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown',
             reply_markup=get_main_keyboard()
         )
+        return
     
     elif text == "🛠 Навыки":
         session_manager.clear_consultant_topic(user_id)
@@ -170,6 +173,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown',
             reply_markup=get_main_keyboard()
         )
+        return
     
     elif text == "🤖 Проекты ИИ":
         session_manager.clear_consultant_topic(user_id)
@@ -183,6 +187,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown',
             reply_markup=get_main_keyboard()
         )
+        return
     
     elif text == "📞 Контакты":
         session_manager.clear_consultant_topic(user_id)
@@ -194,6 +199,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown',
             reply_markup=get_contacts_keyboard()
         )
+        return
     
     elif text == "📰 Консультант ИИ":
         session_manager.clear_consultant_topic(user_id)
@@ -207,13 +213,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown',
             reply_markup=get_ai_consultant_keyboard()
         )
+        return
     
     # Обработка тем консультанта
     elif text == "🏭 Угольная промышленность":
         await handle_consultant_topic_selection(
             update, context,
             "угольная_промышленность",
-            "🏭 *Консультант по угольная промышленности*",
+            "🏭 *Консультант по угольной промышленности*",
             "Задавайте вопросы по:\n"
             "• Технологиям добычи угля\n"
             "• Оборудованию и технике\n"  
@@ -221,6 +228,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• Процессам обогащения\n"
             "• Логистике и транспортировке"
         )
+        return
     
     elif text == "📊 Качество угля":
         await handle_consultant_topic_selection(
@@ -234,6 +242,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• Лабораторным исследованиям\n"
             "• Сертификации продукции"
         )
+        return
     
     elif text == "🚀 Искусственный интеллект":
         await handle_consultant_topic_selection(
@@ -247,6 +256,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• Анализу данных\n"
             "• Оптимизации процессов"
         )
+        return
     
     elif text == "🔙 Назад к темам":
         # Возвращаем к выбору тем консультанта
@@ -255,6 +265,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Выберите тему для консультации:",
             reply_markup=get_ai_consultant_keyboard()
         )
+        return
     
     elif text == "📋 Главное меню":
         # Возвращаем в главное меню
@@ -263,6 +274,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Главное меню:",
             reply_markup=get_main_keyboard()
         )
+        return
     
     else:
         # Если сообщение не распознано
@@ -339,7 +351,7 @@ def main():
         # Добавляем обработчик ошибок
         application.add_error_handler(error_handler)
         
-        print("✅ Бот инициализирован с УПРОЩЕННОЙ логикой!")
+        print("✅ Бот инициализирован с исправленной логикой!")
         print("🤖 Запускаем polling...")
         
         application.run_polling()
