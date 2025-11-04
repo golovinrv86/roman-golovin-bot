@@ -4,20 +4,27 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes
 
 # Импортируем функции клавиатур
-from keyboards import get_main_keyboard, get_contacts_keyboard, get_ai_consultant_keyboard
+from keyboards import get_main_keyboard, get_contacts_keyboard, get_ai_consultant_keyboard, get_back_to_consultant_keyboard
+from yandex_gpt import yandex_gpt  # Импортируем Yandex GPT
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 print("🤖 Бот Головина Романа - ЗАПУЩЕН")
+print(f"✅ Yandex GPT: {'настроен' if yandex_gpt.is_configured() else 'не настроен'}")
+
+# Глобальная переменная для хранения текущей темы консультации
+user_sessions = {}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
     print(f"👤 Пользователь {user.first_name} начал чат")
     
+    # Очищаем сессию пользователя
+    user_sessions[user.id] = {"consultant_topic": None}
+    
     try:
-        # Пробуем отправить фото
         if os.path.exists('assets/my_photo.png'):
             with open('assets/my_photo.png', 'rb') as photo:
                 await update.message.reply_photo(
@@ -27,7 +34,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     reply_markup=get_main_keyboard()
                 )
         else:
-            # Если фото нет, отправляем текст
             await update.message.reply_text(
                 "👋 Привет! Я *Головин Роман*\n\n🏭 Старший контрольный мастер подземным\n💼 Ургалуголь\n\nДобро пожаловать в мою визитную карточку!",
                 parse_mode='Markdown',
@@ -42,8 +48,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.from_user.id
     text = update.message.text
-    print(f"📨 Получено сообщение: {text}")
+    print(f"📨 Получено сообщение от {user_id}: {text}")
+    
+    # Проверяем, находится ли пользователь в режиме консультанта
+    if user_id in user_sessions and user_sessions[user_id].get("consultant_topic"):
+        await handle_consultant_question(update, context)
+        return
     
     # Обработка кнопок меню
     if text == "🔍 Обо мне":
@@ -120,21 +132,102 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "📰 Консультант ИИ":
         await update.message.reply_text(
             "🤖 **Консультант ИИ**\n\n"
-            "В этом разделе вы можете задать вопросы по темам:\n\n"
-            "🏭 Угольная промышленность\n"
-            "📊 Качество угля\n"
-            "🚀 Искусственный интеллект\n\n"
-            "Функционал в разработке...",
+            "Выберите тему для консультации:\n\n"
+            "🏭 *Угольная промышленность* - технологии добычи, оборудование, безопасность\n"
+            "📊 *Качество угля* - стандарты, методики, контроль качества\n"
+            "🚀 *Искусственный интеллект* - внедрение ИИ в производство\n\n"
+            "После выбора темы вы можете задавать вопросы AI-консультанту.",
             parse_mode='Markdown',
             reply_markup=get_ai_consultant_keyboard()
         )
     
+    # Обработка тем консультанта
+    elif text == "🏭 Угольная промышленность":
+        user_sessions[user_id] = {"consultant_topic": "угольная_промышленность"}
+        await update.message.reply_text(
+            "🏭 *Консультант по угольной промышленности*\n\n"
+            "Задавайте вопросы по:\n"
+            "• Технологиям добычи угля\n"
+            "• Оборудованию и технике\n"  
+            "• Технике безопасности\n"
+            "• Процессам обогащения\n"
+            "• Логистике и транспортировке\n\n"
+            "Для возврата к выбору темы нажмите 'Назад к темам'",
+            parse_mode='Markdown',
+            reply_markup=get_back_to_consultant_keyboard()
+        )
+    
+    elif text == "📊 Качество угля":
+        user_sessions[user_id] = {"consultant_topic": "качество_угля"}
+        await update.message.reply_text(
+            "📊 *Консультант по качеству угля*\n\n"
+            "Задавайте вопросы по:\n"
+            "• Методам оценки качества\n"
+            "• Параметрам качества (зольность, влажность)\n"
+            "• Стандартам и нормативам\n"
+            "• Лабораторным исследованиям\n"
+            "• Сертификации продукции\n\n"
+            "Для возврата к выбору темы нажмите 'Назад к темам'",
+            parse_mode='Markdown',
+            reply_markup=get_back_to_consultant_keyboard()
+        )
+    
+    elif text == "🚀 Искусственный интеллект":
+        user_sessions[user_id] = {"consultant_topic": "искусственный_интеллект"}
+        await update.message.reply_text(
+            "🚀 *Консультант по искусственному интеллекту*\n\n"
+            "Задавайте вопросы по:\n"
+            "• Внедрению ИИ в производство\n"
+            "• Компьютерному зрению\n"
+            "• Predictive maintenance\n"
+            "• Анализу данных\n"
+            "• Оптимизации процессов\n\n"
+            "Для возврата к выбору темы нажмите 'Назад к темам'",
+            parse_mode='Markdown',
+            reply_markup=get_back_to_consultant_keyboard()
+        )
+    
+    elif text == "🔙 Назад к темам" or text == "📋 Главное меню":
+        # Возвращаем в главное меню
+        if user_id in user_sessions:
+            user_sessions[user_id]["consultant_topic"] = None
+        
+        if text == "🔙 Назад к темам":
+            await update.message.reply_text(
+                "Выберите тему для консультации:",
+                reply_markup=get_ai_consultant_keyboard()
+            )
+        else:
+            await update.message.reply_text(
+                "Главное меню:",
+                reply_markup=get_main_keyboard()
+            )
+    
     else:
-        # Если сообщение не распознано, показываем меню
         await update.message.reply_text(
             "Выберите пункт из меню ниже:",
             reply_markup=get_main_keyboard()
         )
+
+async def handle_consultant_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обрабатывает вопросы для AI-консультанта"""
+    user_id = update.message.from_user.id
+    question = update.message.text
+    
+    # Показываем, что бот "печатает"
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+    
+    topic = user_sessions[user_id]["consultant_topic"]
+    
+    # Отправляем вопрос в Yandex GPT
+    answer = await yandex_gpt.ask_question(question, topic)
+    
+    # Отправляем ответ пользователю
+    await update.message.reply_text(
+        f"🤖 *Ответ консультанта:*\n\n{answer}",
+        parse_mode='Markdown',
+        reply_markup=get_back_to_consultant_keyboard()
+    )
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик нажатий на инлайн-кнопки"""
@@ -148,6 +241,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /menu - показывает главное меню"""
+    user_id = update.message.from_user.id
+    # Очищаем сессию консультанта
+    if user_id in user_sessions:
+        user_sessions[user_id]["consultant_topic"] = None
+    
     await update.message.reply_text(
         "Главное меню:",
         reply_markup=get_main_keyboard()
