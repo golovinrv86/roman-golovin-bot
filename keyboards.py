@@ -5,8 +5,7 @@ def get_main_keyboard():
     keyboard = [
         ["🔍 Обо мне", "💼 Опыт работы"],
         ["🎓 Образование", "🛠 Навыки"],
-        ["🤖 Проекты ИИ", "📞 Контакты"],
-        ["📰 Консультант ИИ"]
+        ["🤖 Проекты ИИ", "📞 Контакты"]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -17,20 +16,3 @@ def get_contacts_keyboard():
         [InlineKeyboardButton("📱 Telegram", callback_data="telegram")]
     ]
     return InlineKeyboardMarkup(keyboard)
-
-def get_ai_consultant_keyboard():
-    """Клавиатура для ИИ консультанта"""
-    keyboard = [
-        ["🏭 Угольная промышленность"],
-        ["📊 Качество угля"],
-        ["🚀 Искусственный интеллект"],
-        ["📋 Главное меню"]
-    ]
-    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-
-def get_consultant_active_keyboard():
-    """Клавиатура когда консультант активен"""
-    keyboard = [
-        ["🔙 Назад к темам"]
-    ]
-    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)

@@ -14,15 +14,6 @@ def home():
 def health():
     return "OK"
 
-@app.route('/yandex-status')
-def yandex_status():
-    try:
-        from yandex_gpt import yandex_gpt
-        status = "настроен" if yandex_gpt.is_configured() else "не настроен"
-        return f"Yandex GPT: {status}"
-    except Exception as e:
-        return f"Error: {e}"
-
 def run_bot():
     """Запускает бота в отдельном процессе"""
     time.sleep(10)
